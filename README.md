@@ -1,4 +1,4 @@
-# ing-assessment
+# Glamour Connect
 
 The main functionality of the project is the backend of a makeup site, when I got this assignment I remembered that my girlfriend wanted me to make her a makeup site
 so, I combined these two into one single project.
@@ -25,4 +25,4 @@ As a bonus to this I would integrate Kafka and also TestContainers.
 
 http://localhost:8080/swagger-ui/index.html - swagger
 
-src/main/resources/ING.postman_collection.json - Postman Collection
+src/main/resources/postman_collection.json - Postman Collection
