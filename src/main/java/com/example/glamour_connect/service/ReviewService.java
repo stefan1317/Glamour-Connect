@@ -1,5 +1,6 @@
 package com.example.glamour_connect.service;
 
+import com.example.glamour_connect.aop.LogExecution;
 import com.example.glamour_connect.domain.AppUser;
 import com.example.glamour_connect.domain.Makeup;
 import com.example.glamour_connect.domain.Review;
@@ -11,11 +12,13 @@ import com.example.glamour_connect.repository.ReviewRepository;
 import com.example.glamour_connect.utils.ReviewMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -30,31 +33,41 @@ public class ReviewService {
 
     private final ReviewMapper reviewMapper;
 
-    public ResponseEntity<ReviewDto> saveReview(ReviewDto reviewDto) {
+    @Value("#{ '${app.environment}'.toUpperCase() != 'PROD' }")
+    private boolean isNotProduction;
+
+    @LogExecution
+    public CompletableFuture<ResponseEntity<ReviewDto>> saveReview(ReviewDto reviewDto) {
 
         if (reviewDto == null) {
             throw new RecordCannotBeNullException("Review cannot be null.");
         }
 
-        AppUser user = appUserRepository
-                .findById(reviewDto.userId())
-                .orElseThrow(() ->
-                        new RecordCannotBeNullException("User with id " + reviewDto.userId() + " cannot be found."));
+        CompletableFuture<AppUser> userFuture = CompletableFuture.supplyAsync(() ->
+            appUserRepository
+                    .findById(reviewDto.userId())
+                    .orElseThrow(() ->
+                            new RecordCannotBeNullException("User with id " + reviewDto.userId() + " cannot be found."))
+        );
 
-        Makeup makeup = makeupRepository
-                .findById(reviewDto.makeupId())
-                .orElseThrow(() ->
-                        new RecordCannotBeNullException("Makeup with id " + reviewDto.makeupId() + " cannot be found."));
+        CompletableFuture<Makeup> makeupFuture = CompletableFuture.supplyAsync(() ->
+                makeupRepository
+                        .findById(reviewDto.makeupId())
+                        .orElseThrow(() ->
+                                new RecordCannotBeNullException("Makeup with id " + reviewDto.makeupId() + " cannot be found."))
+        );
 
-        Review review = reviewMapper.toEntity(reviewDto);
+        return userFuture.thenCombine(makeupFuture, (user, makeup) -> {
+            Review review = reviewMapper.toEntity(reviewDto);
 
-        review.setAppUser(user);
-        review.setMakeup(makeup);
+            review.setAppUser(user);
+            review.setMakeup(makeup);
 
-        Review savedReview = reviewRepository.save(review);
+            Review savedReview = reviewRepository.save(review);
 
-        log.info("Review: {} saved.", savedReview);
-        return new ResponseEntity<>(reviewMapper.toDto(savedReview), HttpStatus.OK);
+            log.info("Review: {} saved.", savedReview);
+            return new ResponseEntity<>(reviewMapper.toDto(savedReview), HttpStatus.OK);
+        });
     }
 
     public ResponseEntity<List<ReviewDto>> getReviewsByMakeupId(long makeupId) {
@@ -65,8 +78,13 @@ public class ReviewService {
     }
 
     public ResponseEntity<String> deleteReview(long reviewId) {
-        reviewRepository.deleteById(reviewId);
 
-        return ResponseEntity.ok("Review with id " + reviewId + " was deleted successfully.");
+        if (isNotProduction) {
+            reviewRepository.deleteById(reviewId);
+
+            return ResponseEntity.ok("Review with id " + reviewId + " was deleted successfully.");
+        }
+
+        return ResponseEntity.ok("You cannot delete reviews in Production.");
     }
 }

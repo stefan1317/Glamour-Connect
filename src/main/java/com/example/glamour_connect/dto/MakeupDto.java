@@ -8,6 +8,6 @@ public record MakeupDto(
         String name,
         String description,
         String imageUrl,
-        String durationInHours,
+        double durationInHours,
         double price) {
 }

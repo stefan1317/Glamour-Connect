@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequiredArgsConstructor
@@ -24,7 +25,7 @@ public class ReviewController {
 
     @PreAuthorize("hasRole('USER')")
     @PostMapping("/save")
-    public ResponseEntity<ReviewDto> saveReview(@RequestBody ReviewDto reviewDto) {
+    public CompletableFuture<ResponseEntity<ReviewDto>> saveReview(@RequestBody ReviewDto reviewDto) {
         return reviewService.saveReview(reviewDto);
     }
 
